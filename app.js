@@ -112,20 +112,50 @@ document.addEventListener('DOMContentLoaded', () => {
             state.market.usd = fxData.rates.TRY;
             state.market.eur = fxData.rates.TRY / fxData.rates.EUR;
             
-            // 2. Stocks & Gold (Yahoo Finance via Proxy)
+            // 2. Stocks & Gold (Yahoo Finance via Proxy with Fallbacks)
             const symbols = ['BFREN.IS', 'GC=F'];
-            const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/chart/`;
+            // Using query2 and v8 for better stability and adjustment
+            const yahooUrl = `https://query2.finance.yahoo.com/v8/finance/chart/`;
             for (let symbol of symbols) {
                 try {
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl + symbol + "?interval=1m&range=1d")}`;
+                    // Check manual lock
+                    if (symbol === 'BFREN.IS' && state.market.bfren_manual) continue;
+                    
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl + symbol + "?interval=1m&range=1d&t=" + Date.now())}`;
                     const resp = await fetch(proxyUrl);
                     const data = await resp.json();
                     const content = JSON.parse(data.contents);
-                    const price = content.chart.result[0].meta.regularMarketPrice;
                     
-                    if (symbol === 'BFREN.IS' && price > 0) state.market.bfren = price;
-                    if (symbol === 'GC=F' && price > 0) state.market.gold = (price / 31.1) * state.market.usd;
-                } catch(err){}
+                    if (!content || !content.chart || !content.chart.result || !content.chart.result[0]) continue;
+                    
+                    const meta = content.chart.result[0].meta;
+                    let price = meta.regularMarketPrice;
+                    
+                    // Fallback to last close indicator if regularMarketPrice is missing or stale (0)
+                    if (!price || price === 0) {
+                        const indicators = content.chart.result[0].indicators;
+                        if (indicators && indicators.quote && indicators.quote[0] && indicators.quote[0].close) {
+                            const closes = indicators.quote[0].close.filter(c => c !== null);
+                            if (closes.length > 0) price = closes[closes.length - 1];
+                        }
+                    }
+
+                    // For BFREN: Sanity check against unadjusted high prices (pre-split artifacts)
+                    if (symbol === 'BFREN.IS' && price > 0) {
+                        // If price is suspiciously high (e.g. > 1000 TL), ignore it as it might be unadjusted pre-split data
+                        if (price > 1000) {
+                            console.warn("BFREN price seems unadjusted:", price);
+                        } else {
+                            state.market.bfren = price;
+                        }
+                    }
+                    
+                    if (symbol === 'GC=F' && price > 0) {
+                        state.market.gold = (price / 31.1) * state.market.usd;
+                    }
+                } catch(err){
+                    console.error("Fetch error for " + symbol, err);
+                }
             }
             saveState(); updateMarketUI(); updateDashboard();
         } catch (e) {}
@@ -157,8 +187,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let num = parseFloat(cleaned);
             if (!isNaN(num)) {
                 state.market[key] = num;
+                // Lock this item from auto-update if it's BFREN
+                if (key === 'bfren') {
+                    state.market.bfren_manual = true;
+                    // Add a way to unlock if needed? For now, manual update triggers lock.
+                }
                 saveState(); updateMarketUI(); updateDashboard();
-                alert(`✅ ${label} Başarıyla Güncellendi: ${num}`);
+                alert(`✅ ${label} Başarıyla Güncellendi: ${num}${key==='bfren'?' (Otomatik güncelleme kapatıldı) ':''}`);
             } else { alert("❌ Geçersiz sayı!"); }
         }
     };
