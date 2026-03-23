@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Param & Yolum - Kişisel Finans Rehberim</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="theme-dark">
+    <div class="app-container">
+        <header>
+            <div class="header-top">
+                <div class="logo-section">
+                    <div class="logo-icon">💠</div>
+                    <div class="brand">
+                        <h1>Param<span>&Yolum</span></h1>
+                        <span id="live-clock" class="clock-display">23 Mart 2026 | 03:59</span>
+                    </div>
+                </div>
+                <div class="theme-controls">
+                    <button class="theme-dot dark active" data-theme="dark" title="Koyu"></button>
+                    <button class="theme-dot light" data-theme="light" title="Açık"></button>
+                    <button class="theme-dot gold" data-theme="gold" title="Altın"></button>
+                </div>
+            </div>
+            <div class="nav-tabs">
+                <button class="tab-btn active" data-tab="dashboard">Genel</button>
+                <button class="tab-btn" data-tab="income">Defter</button>
+                <button class="tab-btn" data-tab="market">Piyasa</button>
+                <button class="tab-btn" data-tab="borsa">Borsa</button>
+                <button class="tab-btn" data-tab="tools">Araçlar</button>
+                <button class="tab-btn" data-tab="projection">Gelecek</button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <!-- DASHBOARD TAB -->
+            <section id="dashboard" class="tab-content active">
+                <div class="overview-cards">
+                    <div class="glass-card balance-card">
+                        <span class="card-label">Net Varlık (Toplam Birikim)</span>
+                        <h2 id="net-wealth">0.00 ₺</h2>
+                        <div class="progress-bar-mini"><div class="progress-fill" style="width: 70%;"></div></div>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="glass-card stat-card income-stat">
+                        <span class="icon">📈</span>
+                        <div>
+                            <span class="card-label">Aylık Net Gelir</span>
+                            <h3 id="dash-total-income">0 ₺</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card stat-card expense-stat">
+                        <span class="icon">📉</span>
+                        <div>
+                            <span class="card-label">Aylık Toplam Gider</span>
+                            <h3 id="dash-total-expense">0 ₺</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HISSE PORTFOYU -->
+                <div class="glass-card birikim-summary assets-card">
+                    <h3>Hisse Portföyü (BFREN) 🚜</h3>
+                    <div class="assets-grid-alt">
+                        <div class="input-group">
+                            <label>Adet</label>
+                            <input type="number" id="bfren-count" placeholder="0">
+                        </div>
+                        <div class="input-group">
+                            <label>Maliyet (₺)</label>
+                            <input type="number" id="bfren-avg" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="pl-display" id="bfren-summary" style="margin-bottom:20px;">
+                        <div class="pl-row">
+                            <span>BFREN Değeri:</span>
+                            <b id="bfren-total-val">0.00 ₺</b>
+                        </div>
+                        <div class="pl-row">
+                            <span>Kâr / Zarar:</span>
+                            <b id="bfren-profit-loss">0.00 ₺ (0.00%)</b>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top:20px;">Diğer Varlıklar (Miktar Gir) 📦</h3>
+                    <div class="assets-grid">
+                        <div class="asset-input-group">
+                            <label>🌕 Gram Altın</label>
+                            <input type="number" id="gold-count" placeholder="0 gr">
+                        </div>
+                        <div class="asset-input-group">
+                            <label>🏦 YPP Fon (Adet)</label>
+                            <input type="number" id="ypp-count" placeholder="0 ad">
+                        </div>
+                        <div class="asset-input-group">
+                            <label>💵 Dolar ($)</label>
+                            <input type="number" id="asset-usd" value="0">
+                        </div>
+                        <div class="asset-input-group">
+                            <label>💶 Euro (€)</label>
+                            <input type="number" id="asset-eur" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GENEL VARLIK TABLOSU -->
+                <div class="glass-card table-section" style="margin-top: 20px;">
+                    <h3>📊 Varlık Dağılımı ve Toplamlar</h3>
+                    <div class="table-wrapper">
+                        <table id="asset-breakdown-table">
+                            <thead>
+                                <tr>
+                                    <th>Varlık</th>
+                                    <th>Miktar</th>
+                                    <th>Fiyat (₺)</th>
+                                    <th>Toplam (₺)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="breakdown-body">
+                                <!-- JS items -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-card birikim-summary">
+                    <h3>Fon Durumu (Projeksiyon Özeti)</h3>
+                    <div class="summary-details">
+                        <div class="detail-item">
+                            <span>Mevcut Sermaye:</span>
+                            <b id="dash-capital">100.000 ₺</b>
+                        </div>
+                        <div class="detail-item">
+                            <span>Günlük Faiz Oranı:</span>
+                            <b class="highlight">%0,10</b>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- INCOME / EXPENSE TAB -->
+            <section id="income" class="tab-content">
+                <div class="glass-card profile-settings" style="margin-bottom:15px; padding:15px; border-left:4px solid var(--accent-blue);">
+                    <h4 style="margin-bottom:10px; font-size:0.85rem; opacity:0.8;">Bütçe Paydaşları (İsimleri Özelleştir)</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input type="text" id="user-name-1" placeholder="1. Kişi (Örn: Ben)" style="font-size:0.8rem; padding:8px;">
+                        <input type="text" id="user-name-2" placeholder="2. Kişi (Örn: Eşim)" style="font-size:0.8rem; padding:8px;">
+                    </div>
+                </div>
+
+                <div class="glass-card ledger-control">
+                    <div class="month-selector">
+                        <button id="prev-month">◀</button>
+                        <h3 id="current-ledger-month">Mart 2026</h3>
+                        <button id="next-month">▶</button>
+                    </div>
+                </div>
+
+                <div class="glass-card entry-form">
+                    <h3>Yeni Kayıt</h3>
+                    <div class="input-row">
+                        <select id="entry-category-select">
+                            <option value="" disabled selected>Kategori Seçin</option>
+                            <optgroup label="Gelir" id="opt-gelir">
+                                <option class="name1-opt">Maaş (1)</option>
+                                <option class="name2-opt">Maaş (2)</option>
+                                <option class="name1-opt">Ek Ders (1)</option>
+                                <option class="name2-opt">Ek Ders (2)</option>
+                                <option value="Sınav Görevi">Sınav Görevi</option>
+                                <option value="Ekstra Gelir">Ekstra Gelir</option>
+                            </optgroup>
+                            <optgroup label="Gider (Sabit)">
+                                <option value="Elektrik">Elektrik</option>
+                                <option value="Su">Su</option>
+                                <option value="Doğal Gaz">Doğal Gaz</option>
+                                <option value="Aidat">Aidat</option>
+                                <option value="Kira">Kira</option>
+                            </optgroup>
+                            <optgroup label="Değişken Giderler">
+                                <option value="Kredi Kartı">Kredi Kartı</option>
+                                <option value="Mutfak">Mutfak</option>
+                                <option value="İnternet">İnternet</option>
+                                <option value="Diğer">Diğer</option>
+                            </optgroup>
+                        </select>
+                        <input type="number" id="entry-amount" placeholder="Miktar (₺)">
+                        <button id="add-entry-btn">Ekle</button>
+                    </div>
+                </div>
+
+                <div class="quick-add-grid" id="quick-add-container">
+                    <button class="quick-btn gel-btn" id="q-btn-1" data-cat="Maaş (1)">Maaş 👤</button>
+                    <button class="quick-btn gel-btn" id="q-btn-2" data-cat="Maaş (2)">Maaş 👥</button>
+                    <button class="quick-btn gid-btn" data-cat="Aidat">Aidat 🏢</button>
+                    <button class="quick-btn gid-btn" data-cat="Kira">Kira 🏠</button>
+                    <button class="quick-btn gid-btn" data-cat="Kredi Kartı">Kart 💳</button>
+                </div>
+                
+                <div class="list-container">
+                    <div class="glass-card list-card">
+                        <div class="list-header">
+                            <h4>İşlem Geçmişi</h4>
+                            <div>
+                                <button id="sync-to-proj" class="primary-btn-mini">Kalanı Birikime Aktar</button>
+                                <button id="clear-entries" class="text-btn">Temizle</button>
+                            </div>
+                        </div>
+                        <ul id="entry-list" class="styled-list">
+                            <!-- JS entries -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MARKET TAB -->
+            <section id="market" class="tab-content">
+                <div class="glass-card">
+                    <div class="list-header">
+                        <h3>Piyasa Takibi</h3>
+                        <button id="refresh-market" class="primary-btn-mini">Kurları Güncelle 📡</button>
+                    </div>
+                    <div class="market-list">
+                        <div class="market-item live"><span>💵 Dolar (Canlı)</span><b id="live-usd">32.61 ₺</b></div>
+                        <div class="market-item live"><span>💶 Euro (Canlı)</span><b id="live-eur">35.34 ₺</b></div>
+                        <div class="market-item live"><span>🌕 Gram Altın (Canlı)</span><b id="live-gold">2441 ₺</b></div>
+                        <div class="market-item live highlight" onclick="updateManualItem('bfren', 'BFREN Hisse')"><span>🚜 BFREN (Canlı)</span><b id="live-bfren">12450 ₺</b></div>
+                        <div class="market-item manual" onclick="updateManualItem('ypp', 'YK Para Piy. Fonu')">
+                            <div style="display:flex; flex-direction:column;">
+                                <span>🏦 YK Para Piy. Fonu (Düzenle)</span>
+                                <a href="https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod=YPP" target="_blank" onclick="event.stopPropagation()" style="font-size:0.65rem; color:var(--accent-emerald); text-decoration:none; margin-top:4px;">Resmi Getiri Analizi 📊</a>
+                            </div>
+                            <b id="live-ypp">0.123445</b>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BORSA TAB -->
+            <section id="borsa" class="tab-content">
+                <div class="glass-card">
+                    <div class="list-header">
+                        <h3>Canlı Borsa (BIST)</h3>
+                        <a href="https://www.google.com/finance/markets/indexes/istanbul-stock-exchange" target="_blank" class="primary-btn-mini" style="text-decoration:none;">Google Finance 🌐</a>
+                    </div>
+                    <div id="tradingview-container" style="height: 500px; margin-top:15px; border-radius:12px; overflow:hidden;">
+                        <div id="tv-widget"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TOOLS TAB -->
+            <section id="tools" class="tab-content">
+                <div class="glass-card tool-box">
+                    <h3>Kredi Hesaplayıcı</h3>
+                    <div class="controls-grid">
+                        <div class="input-group">
+                            <label>Kredi Tutarı</label>
+                            <input type="number" id="loan-amount" placeholder="100000">
+                        </div>
+                        <div class="input-group">
+                            <label>Aylık Faiz (%)</label>
+                            <input type="number" step="0.01" id="loan-rate" placeholder="3.5">
+                        </div>
+                        <div class="input-group">
+                            <label>Vade (Ay)</label>
+                            <input type="number" id="loan-term" placeholder="12">
+                        </div>
+                    </div>
+                    <button id="calc-loan" class="primary-btn">Aylık Taksiti Bul</button>
+                    <div id="loan-result" class="tool-result"></div>
+                </div>
+
+                <div class="glass-card tool-box">
+                    <h3>Vadeli Mevduat Hesapla</h3>
+                    <div class="controls-grid">
+                        <div class="input-group">
+                            <label>Anapara</label>
+                            <input type="number" id="deposit-amount" placeholder="100000">
+                        </div>
+                        <div class="input-group">
+                            <label>Yıllık Faiz (%)</label>
+                            <input type="number" step="0.1" id="deposit-rate" placeholder="50">
+                        </div>
+                        <div class="input-group">
+                            <label>Vade (Gün)</label>
+                            <input type="number" id="deposit-days" placeholder="32">
+                        </div>
+                    </div>
+                    <button id="calc-deposit" class="primary-btn">Net Getiriyi Hesapla</button>
+                    <div id="deposit-result" class="tool-result"></div>
+                </div>
+            </section>
+
+            <!-- PROJECTION TAB -->
+            <section id="projection" class="tab-content">
+                <div class="stats-row" style="margin-bottom: 20px;">
+                    <div class="glass-card stat-card income-stat">
+                        <span class="icon">🎯</span>
+                        <div>
+                            <span class="card-label">5. Yıl Tahmini</span>
+                            <h3 id="target-5yr">0.00 ₺</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card stat-card income-stat" style="border-left: 4px solid var(--accent-gold);">
+                        <span class="icon">🏆</span>
+                        <div>
+                            <span class="card-label">10. Yıl Tahmini</span>
+                            <h3 id="target-10yr">0.00 ₺</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card simulation-settings">
+                    <h3>Gelecek Planlaması</h3>
+                    <div class="controls-grid">
+                        <div class="input-group">
+                            <label>Başlangıç Tutarı</label>
+                            <input type="number" id="proj-initial" value="100000">
+                        </div>
+                        <div class="input-group">
+                            <label>Aylık Birikim (15'i)</label>
+                            <input type="number" id="proj-monthly" value="100000">
+                        </div>
+                        <div class="input-group">
+                            <label>Günlük Fon Getirisi (%)</label>
+                            <input type="number" step="0.01" id="proj-rate" value="0.10">
+                            <small class="hint">Standart: 0.10</small>
+                        </div>
+                        <div class="input-group">
+                            <label>Süre (Vade)</label>
+                            <select id="proj-duration">
+                                <option value="12">1 Yıl (12 Ay)</option>
+                                <option value="60">5 Yıl (60 Ay)</option>
+                                <option value="120" selected>10 Yıl (120 Ay)</option>
+                                <option value="240">20 Yıl (240 Ay)</option>
+                                <option value="360">30 Yıl (360 Ay)</option>
+                                <option value="480">40 Yıl (480 Ay)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="recalc-btn" class="primary-btn">Simülasyon Güncelle</button>
+                </div>
+
+                <div class="chart-section glass-card">
+                    <div class="chart-container">
+                        <canvas id="projectionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-card table-section">
+                    <div class="list-header">
+                        <h3>Büyüme Detayları</h3>
+                        <div class="sub-tabs">
+                            <button class="sub-tab-btn active" data-view="monthly">Aylık</button>
+                            <button class="sub-tab-btn" data-view="yearly">Yıllık</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="projection-table">
+                            <thead>
+                                <tr id="table-head-row">
+                                    <th>Zaman</th>
+                                    <th>Ekleme</th>
+                                    <th>Kazanç</th>
+                                    <th>Bakiye</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <div class="footer-links">
+                <span class="dev-info">Geliştiren: <b>Fatih PATIR</b></span>
+            </div>
+            <p>&copy; 2026 Param & Yolum</p>
+            <button id="install-btn" class="install-pwa-btn">Uygulamayı Yükle 📲</button>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('pwa-sw.js');
+            });
+        }
+    </script>
+</body>
+</html>
