@@ -1,6 +1,6 @@
 /**
  * Param & Yolum - Robust Financial Core 🏛️
- * Defensive Scripting Architecture + Localized Input Support 🇹🇷
+ * Defensive Scripting Architecture + Live Market Engine (Auto-Refresh) 📡
  */
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initial State Loading & Recovery
@@ -11,15 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
         state = {};
     }
 
+    // Default Fallbacks with modern 2026 prices
     const defaultState = {
         entries: [],
         projectionSettings: { initial: 100000, monthly: 100000, rate: 0.10, duration: 120 },
         assets: { stocks: 0, usd: 0, eur: 0, rateUsd: 32.5, rateEur: 35.2, bfren_count: 0, bfren_avg: 0, gold_count: 0, ypp_count: 0 },
-        market: { usd: 32.61, eur: 35.34, gold: 2441, bfren: 12450, ypp: 0.123445 },
+        market: { usd: 32.61, eur: 35.34, gold: 2441, bfren: 141.80, ypp: 0.123445 },
         users: { name1: "Ben", name2: "Eşim" },
         theme: 'dark'
     };
 
+    // Deep merge or ensure fields
     state = { ...defaultState, ...state };
     state.assets = { ...defaultState.assets, ...state.assets };
     state.market = { ...defaultState.market, ...state.market };
@@ -99,15 +101,18 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEl('user-name-1', 'input', syncUserNames);
     setupEl('user-name-2', 'input', syncUserNames);
 
-    // --- MARKET UPDATE (COMMA COMPATIBILTY FIX) ---
+    // --- MARKET UPDATE (LIVE POLLING 📡) ---
     const fetchLiveMarket = async () => {
         const refreshBtn = document.getElementById('refresh-market');
-        if (refreshBtn) refreshBtn.textContent = "Veriler Çekiliyor... 🚀";
+        if (refreshBtn) refreshBtn.innerHTML = "Güncelleniyor... 🔄";
         try {
+            // 1. Dolar & Euro (Frankfurter is reliably fast)
             const fxResp = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY,EUR');
             const fxData = await fxResp.json();
             state.market.usd = fxData.rates.TRY;
             state.market.eur = fxData.rates.TRY / fxData.rates.EUR;
+            
+            // 2. Stocks & Gold (Yahoo Finance via Proxy)
             const symbols = ['BFREN.IS', 'GC=F'];
             const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/chart/`;
             for (let symbol of symbols) {
@@ -117,13 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await resp.json();
                     const content = JSON.parse(data.contents);
                     const price = content.chart.result[0].meta.regularMarketPrice;
-                    if (symbol === 'BFREN.IS') state.market.bfren = price;
-                    if (symbol === 'GC=F') state.market.gold = (price / 31.1) * state.market.usd;
+                    
+                    if (symbol === 'BFREN.IS' && price > 0) state.market.bfren = price;
+                    if (symbol === 'GC=F' && price > 0) state.market.gold = (price / 31.1) * state.market.usd;
                 } catch(err){}
             }
             saveState(); updateMarketUI(); updateDashboard();
         } catch (e) {}
-        if (refreshBtn) refreshBtn.textContent = "Kurları Güncelle 📡";
+        if (refreshBtn) refreshBtn.innerHTML = "Kurları Güncelle 📡";
     };
 
     const updateMarketUI = () => {
@@ -132,36 +138,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById(els[k]);
             if (el) {
                 let val = state.market[k] || 0;
-                el.textContent = k === 'ypp' ? val.toFixed(6) : val.toFixed(k==='gold'||k==='bfren'?0:2) + (k==='ypp'?'':' ₺');
+                let oldVal = el.textContent;
+                let newVal = k === 'ypp' ? val.toFixed(6) : val.toFixed(k==='gold'||k==='bfren'?2:2) + (k==='ypp'?'':' ₺');
+                
+                if (oldVal !== newVal) {
+                    el.textContent = newVal;
+                    el.classList.add('amt-gain'); // Small flash
+                    setTimeout(() => el.classList.remove('amt-gain'), 1000);
+                }
             }
         }
     };
 
-    // MANUAL INPUT: Now supports commas (,) as decimal separators for Turkish users.
     window.updateManualItem = (key, label) => {
-        let val = prompt(`${label} için yeni fiyat (Virgül veya Nokta kullanabilirsiniz):`, state.market[key] || 0);
+        let val = prompt(`${label} için yeni fiyat (Bölünmüş fiyat örn: 141,80):`, state.market[key] || 0);
         if (val !== null) {
-            // Replace comma with dot for proper parsing
             let cleaned = val.toString().replace(',', '.');
             let num = parseFloat(cleaned);
             if (!isNaN(num)) {
                 state.market[key] = num;
                 saveState(); updateMarketUI(); updateDashboard();
                 alert(`✅ ${label} Başarıyla Güncellendi: ${num}`);
-            } else {
-                alert("❌ Geçersiz sayı formatı! Lütfen sadece rakam ve nokta/virgül kullanın.");
-            }
+            } else { alert("❌ Geçersiz sayı!"); }
         }
     };
     setupEl('refresh-market', 'click', fetchLiveMarket);
 
+    // Auto Refresh every 30 seconds
+    setInterval(fetchLiveMarket, 30000);
+
     // --- CALCULATORS ---
     setupEl('calc-loan', 'click', () => {
         const P = parseFloat(document.getElementById('loan-amount').value), r = (parseFloat(document.getElementById('loan-rate').value)||0)/100, n = parseFloat(document.getElementById('loan-term').value);
-        if (P && r && n) {
-            const formula = (P*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
-            document.getElementById('loan-result').textContent = `Taksit: ${formatCurrency(formula)}`;
-        }
+        if (P && r && n) document.getElementById('loan-result').textContent = `Taksit: ${formatCurrency((P*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1))}`;
     });
     setupEl('calc-deposit', 'click', () => {
         const P = parseFloat(document.getElementById('deposit-amount').value), R = parseFloat(document.getElementById('deposit-rate').value), D = parseFloat(document.getElementById('deposit-days').value);
@@ -208,10 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let net = 0; state.entries.filter(e => e.monthKey === key).forEach(e => { if (e.type === 'income') net += e.amount; else net -= e.amount; });
         if (net > 0) {
             const pMon = document.getElementById('proj-monthly');
-            if (pMon) {
-                pMon.value = net.toFixed(0); state.projectionSettings.monthly = net;
-                alert('Miktar Aktarıldı! Plan güncelleniyor...'); initProjection();
-            }
+            if (pMon) { pMon.value = net.toFixed(0); state.projectionSettings.monthly = net; alert('Aktarıldı!'); initProjection(); }
         }
     });
 
@@ -228,9 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (m <= dur) projectionData.push({ month: m, added: mon, profit: prof, balance: bal });
             if (m === 60) bal5yr = bal; if (m === 120) bal10yr = bal;
         }
-        const t5 = document.getElementById('target-5yr'), t10 = document.getElementById('target-10yr');
-        if (t5) t5.textContent = formatCurrency(bal5yr);
-        if (t10) t10.textContent = formatCurrency(bal10yr);
+        if (document.getElementById('target-5yr')) document.getElementById('target-5yr').textContent = formatCurrency(bal5yr);
+        if (document.getElementById('target-10yr')) document.getElementById('target-10yr').textContent = formatCurrency(bal10yr);
         renderProjection('monthly');
         const cEl = document.getElementById('projectionChart');
         if (cEl) {
@@ -269,8 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let inc = 0, exp = 0; (state.entries || []).filter(e => e.monthKey === key).forEach(e => { if (e.type === 'income') inc += e.amount; else exp += e.amount; });
         const bPrice = state.market.bfren || 0, bCount = state.assets.bfren_count || 0, bAvg = state.assets.bfren_avg || 0;
         const bVal = bCount * bPrice, bCost = bCount * bAvg, bPL = bVal - bCost, bPLP = bCost > 0 ? (bPL/bCost)*100 : 0;
-        const bValEl = document.getElementById('bfren-total-val'), bPLEl = document.getElementById('bfren-profit-loss');
-        if (bValEl) bValEl.textContent = formatCurrency(bVal);
+        if (document.getElementById('bfren-total-val')) document.getElementById('bfren-total-val').textContent = formatCurrency(bVal);
+        const bPLEl = document.getElementById('bfren-profit-loss');
         if (bPLEl) { bPLEl.textContent = `${formatCurrency(bPL)} (${bPLP.toFixed(2)}%)`; bPLEl.className = bPL >= 0 ? 'amt-gain' : 'amt-loss'; }
 
         const breakdownItems = [
@@ -297,46 +302,34 @@ document.addEventListener('DOMContentLoaded', () => {
             bodyEl.innerHTML = tableHtml;
         }
 
-        const nwEl = document.getElementById('net-wealth'), tiEl = document.getElementById('dash-total-income'), teEl = document.getElementById('dash-total-expense'), tcEl = document.getElementById('dash-capital');
-        if (nwEl) nwEl.textContent = formatCurrency(totalWealth);
-        if (tiEl) tiEl.textContent = formatCurrency(inc);
-        if (teEl) teEl.textContent = formatCurrency(exp);
-        if (tcEl) tcEl.textContent = formatCurrency(state.projectionSettings.initial);
+        if (document.getElementById('net-wealth')) document.getElementById('net-wealth').textContent = formatCurrency(totalWealth);
+        if (document.getElementById('dash-total-income')) document.getElementById('dash-total-income').textContent = formatCurrency(inc);
+        if (document.getElementById('dash-total-expense')) document.getElementById('dash-total-expense').textContent = formatCurrency(exp);
+        if (document.getElementById('dash-capital')) document.getElementById('dash-capital').textContent = formatCurrency(state.projectionSettings.initial);
     };
 
-    // --- INITIALIZE & ATTACH ---
+    // --- INITIALIZE ---
     const assetInputs = ['bfren-count', 'bfren-avg', 'gold-count', 'ypp-count', 'asset-usd', 'asset-eur'];
     assetInputs.forEach(id => setupEl(id, 'input', (e) => {
-        const key = id.replace('-', '_');
-        state.assets[key] = parseFloat(e.target.value) || 0;
+        state.assets[id.replace('-', '_')] = parseFloat(e.target.value) || 0;
         updateDashboard();
     }));
 
-    if (state.users && nameInput1) { nameInput1.value = state.users.name1; document.getElementById('user-name-2').value = state.users.name2; syncUserNames(); }
-    [...assetInputs].forEach(id => { const el = document.getElementById(id); if (el) el.value = state.assets[id.replace('-', '_')] || ''; });
+    if (state.users && document.getElementById('user-name-1')) { document.getElementById('user-name-1').value = state.users.name1; document.getElementById('user-name-2').value = state.users.name2; syncUserNames(); }
+    assetInputs.forEach(id => { const el = document.getElementById(id); if (el) el.value = state.assets[id.replace('-', '_')] || ''; });
     const pI = document.getElementById('proj-initial');
     if (pI) { pI.value = state.projectionSettings.initial; document.getElementById('proj-monthly').value = state.projectionSettings.monthly; document.getElementById('proj-rate').value = state.projectionSettings.rate; document.getElementById('proj-duration').value = state.projectionSettings.duration || 120; }
     
-    updateEntriesUI(); updateMarketUI(); initProjection();
+    updateEntriesUI(); updateMarketUI(); initProjection(); fetchLiveMarket();
 
     let tvInitialized = false;
     const initTradingView = () => {
-        const target = document.getElementById('tv-widget');
-        if (tvInitialized || !target) return;
+        if (tvInitialized || !document.getElementById('tv-widget')) return;
         const script = document.createElement('script');
         script.src = "https://s3.tradingview.com/tv.js"; script.async = true;
         script.onload = () => {
-            try {
-                new TradingView.MediumWidget({
-                    "symbols": [["BIST 100", "BIST:XU100|1D"], ["BFREN", "BIST:BFREN|1D"], ["THY", "BIST:THYAO|1D"], ["Aselsan", "BIST:ASELS|1D"]],
-                    "width": "100%", "height": 550, "locale": "tr", "colorTheme": state.theme === 'light' ? 'light' : 'dark', "isTransparent": true, "autosize": true, "container_id": "tv-widget"
-                });
-                tvInitialized = true;
-            } catch(e){}
+            try { new TradingView.MediumWidget({ "symbols": [["BIST 100", "BIST:XU100|1D"], ["BFREN", "BIST:BFREN|1D"]], "width": "100%", "height": 550, "locale": "tr", "colorTheme": state.theme === 'light' ? 'light' : 'dark', "isTransparent": true, "autosize": true, "container_id": "tv-widget" }); tvInitialized = true; } catch(e){}
         };
         document.head.appendChild(script);
     };
-
-    let defPrompt; window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); defPrompt = e; const b = document.getElementById('install-btn'); if (b) b.style.display = 'block'; });
-    setupEl('install-btn', 'click', () => { if (defPrompt) { defPrompt.prompt(); defPrompt = null; } });
 });
