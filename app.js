@@ -1,6 +1,6 @@
 /**
  * Param & Yolum - Robust Financial Core 🏛️
- * Defensive Scripting Architecture
+ * Defensive Scripting Architecture + Localized Input Support 🇹🇷
  */
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initial State Loading & Recovery
@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state = {};
     }
 
-    // Default Fallbacks for all fields
     const defaultState = {
         entries: [],
         projectionSettings: { initial: 100000, monthly: 100000, rate: 0.10, duration: 120 },
@@ -21,20 +20,18 @@ document.addEventListener('DOMContentLoaded', () => {
         theme: 'dark'
     };
 
-    // Deep merge or ensure fields
     state = { ...defaultState, ...state };
     state.assets = { ...defaultState.assets, ...state.assets };
     state.market = { ...defaultState.market, ...state.market };
     state.users = { ...defaultState.users, ...state.users };
     state.projectionSettings = { ...defaultState.projectionSettings, ...state.projectionSettings };
 
-    let currentDate = new Date(2026, 2, 23); // Standard display seed
+    let currentDate = new Date(2026, 2, 23);
     let projectionChart = null;
     let projectionData = [];
 
     const saveState = () => localStorage.setItem('birikim_pro_state', JSON.stringify(state));
 
-    // 2. HELPER: Safe Element Setup
     const setupEl = (id, event, callback) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener(event, callback);
@@ -77,8 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            const targetEl = document.getElementById(target);
-            if (targetEl) targetEl.classList.add('active');
+            const tEl = document.getElementById(target);
+            if (tEl) tEl.classList.add('active');
             
             if (target === 'projection') initProjection();
             if (target === 'borsa') initTradingView();
@@ -92,10 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const n1El = document.getElementById('user-name-1'), n2El = document.getElementById('user-name-2');
         if (n1El) state.users.name1 = n1El.value || "Ben";
         if (n2El) state.users.name2 = n2El.value || "Eşim";
-        
         document.querySelectorAll('.name1-opt').forEach(opt => { opt.textContent = opt.textContent.split(' (')[0] + ` (${state.users.name1})`; opt.value = opt.textContent; });
         document.querySelectorAll('.name2-opt').forEach(opt => { opt.textContent = opt.textContent.split(' (')[0] + ` (${state.users.name2})`; opt.value = opt.textContent; });
-        
         const b1 = document.getElementById('q-btn-1'), b2 = document.getElementById('q-btn-2');
         if (b1) { b1.textContent = `Maaş (${state.users.name1})`; b1.dataset.cat = b1.textContent; }
         if (b2) { b2.textContent = `Maaş (${state.users.name2})`; b2.dataset.cat = b2.textContent; }
@@ -104,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEl('user-name-1', 'input', syncUserNames);
     setupEl('user-name-2', 'input', syncUserNames);
 
-    // --- LIVE MARKET ---
+    // --- MARKET UPDATE (COMMA COMPATIBILTY FIX) ---
     const fetchLiveMarket = async () => {
         const refreshBtn = document.getElementById('refresh-market');
         if (refreshBtn) refreshBtn.textContent = "Veriler Çekiliyor... 🚀";
@@ -113,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const fxData = await fxResp.json();
             state.market.usd = fxData.rates.TRY;
             state.market.eur = fxData.rates.TRY / fxData.rates.EUR;
-            
             const symbols = ['BFREN.IS', 'GC=F'];
             const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/chart/`;
             for (let symbol of symbols) {
@@ -143,11 +137,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // MANUAL INPUT: Now supports commas (,) as decimal separators for Turkish users.
     window.updateManualItem = (key, label) => {
-        const val = prompt(`${label} için yeni fiyat:`, state.market[key] || 0);
-        if (val && !isNaN(val)) {
-            state.market[key] = parseFloat(val);
-            saveState(); updateMarketUI(); updateDashboard();
+        let val = prompt(`${label} için yeni fiyat (Virgül veya Nokta kullanabilirsiniz):`, state.market[key] || 0);
+        if (val !== null) {
+            // Replace comma with dot for proper parsing
+            let cleaned = val.toString().replace(',', '.');
+            let num = parseFloat(cleaned);
+            if (!isNaN(num)) {
+                state.market[key] = num;
+                saveState(); updateMarketUI(); updateDashboard();
+                alert(`✅ ${label} Başarıyla Güncellendi: ${num}`);
+            } else {
+                alert("❌ Geçersiz sayı formatı! Lütfen sadece rakam ve nokta/virgül kullanın.");
+            }
         }
     };
     setupEl('refresh-market', 'click', fetchLiveMarket);
@@ -216,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const initProjection = () => {
         const pIni = document.getElementById('proj-initial'), pMon = document.getElementById('proj-monthly'), pRate = document.getElementById('proj-rate'), pDur = document.getElementById('proj-duration');
         if (!pIni || !pMon || !pRate || !pDur) return;
-        
         let bal = parseFloat(pIni.value)||0, mon = parseFloat(pMon.value)||0, rate = (parseFloat(pRate.value)||0)/100, dur = parseInt(pDur.value);
         projectionData = []; let bal5yr = 0, bal10yr = 0;
         const calcLimit = Math.max(dur, 120);
@@ -226,11 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (m <= dur) projectionData.push({ month: m, added: mon, profit: prof, balance: bal });
             if (m === 60) bal5yr = bal; if (m === 120) bal10yr = bal;
         }
-        
         const t5 = document.getElementById('target-5yr'), t10 = document.getElementById('target-10yr');
         if (t5) t5.textContent = formatCurrency(bal5yr);
         if (t10) t10.textContent = formatCurrency(bal10yr);
-        
         renderProjection('monthly');
         const cEl = document.getElementById('projectionChart');
         if (cEl) {
@@ -267,10 +267,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateDashboard = () => {
         const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
         let inc = 0, exp = 0; (state.entries || []).filter(e => e.monthKey === key).forEach(e => { if (e.type === 'income') inc += e.amount; else exp += e.amount; });
-        
         const bPrice = state.market.bfren || 0, bCount = state.assets.bfren_count || 0, bAvg = state.assets.bfren_avg || 0;
         const bVal = bCount * bPrice, bCost = bCount * bAvg, bPL = bVal - bCost, bPLP = bCost > 0 ? (bPL/bCost)*100 : 0;
-        
         const bValEl = document.getElementById('bfren-total-val'), bPLEl = document.getElementById('bfren-profit-loss');
         if (bValEl) bValEl.textContent = formatCurrency(bVal);
         if (bPLEl) { bPLEl.textContent = `${formatCurrency(bPL)} (${bPLP.toFixed(2)}%)`; bPLEl.className = bPL >= 0 ? 'amt-gain' : 'amt-loss'; }
@@ -314,15 +312,13 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDashboard();
     }));
 
-    // Pre-fill Inputs from state
     if (state.users && nameInput1) { nameInput1.value = state.users.name1; document.getElementById('user-name-2').value = state.users.name2; syncUserNames(); }
     [...assetInputs].forEach(id => { const el = document.getElementById(id); if (el) el.value = state.assets[id.replace('-', '_')] || ''; });
-    const pIni = document.getElementById('proj-initial'), pMon = document.getElementById('proj-monthly'), pRate = document.getElementById('proj-rate'), pDur = document.getElementById('proj-duration');
-    if (pIni) { pIni.value = state.projectionSettings.initial; pMon.value = state.projectionSettings.monthly; pRate.value = state.projectionSettings.rate; pDur.value = state.projectionSettings.duration || 120; }
+    const pI = document.getElementById('proj-initial');
+    if (pI) { pI.value = state.projectionSettings.initial; document.getElementById('proj-monthly').value = state.projectionSettings.monthly; document.getElementById('proj-rate').value = state.projectionSettings.rate; document.getElementById('proj-duration').value = state.projectionSettings.duration || 120; }
     
     updateEntriesUI(); updateMarketUI(); initProjection();
 
-    // TradingView Initialization
     let tvInitialized = false;
     const initTradingView = () => {
         const target = document.getElementById('tv-widget');
@@ -341,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(script);
     };
 
-    // PWA Install
     let defPrompt; window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); defPrompt = e; const b = document.getElementById('install-btn'); if (b) b.style.display = 'block'; });
     setupEl('install-btn', 'click', () => { if (defPrompt) { defPrompt.prompt(); defPrompt = null; } });
 });
