@@ -194,7 +194,15 @@
                                 <option value="Diğer">Diğer</option>
                             </optgroup>
                         </select>
-                        <input type="number" id="entry-amount" placeholder="Miktar (₺)">
+                        <div class="amount-group" style="display: flex; gap: 5px; flex: 1;">
+                            <input type="number" id="entry-amount" placeholder="Miktar" style="flex: 1;">
+                            <select id="entry-currency" style="width: 70px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.5); color: white;">
+                                <option value="TRY">₺</option>
+                                <option value="USD">$</option>
+                                <option value="EUR">€</option>
+                                <option value="GOLD">Gr</option>
+                            </select>
+                        </div>
                         <button id="add-entry-btn">Ekle</button>
                     </div>
                 </div>

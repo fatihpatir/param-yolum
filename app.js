@@ -186,25 +186,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
         (state.entries || []).filter(e => e.monthKey === key).forEach(e => {
             const li = document.createElement('li');
-            li.innerHTML = `<span>${e.desc}</span><span class="amt-${e.type}">${e.type === 'income' ? '+' : '-'}${formatCurrency(e.amount)}</span>`;
+            const symbols = { 'TRY': '₺', 'USD': '$', 'EUR': '€', 'GOLD': ' Gr' };
+            const symbol = symbols[e.currency || 'TRY'] || '₺';
+            const displayAmt = e.currency === 'GOLD' ? `${e.amount}${symbol}` : (e.currency === 'TRY' ? formatCurrency(e.amount) : `${e.amount}${symbol}`);
+            li.innerHTML = `<span>${e.desc}</span><span class="amt-${e.type}">${e.type === 'income' ? '+' : '-'}${displayAmt}</span>`;
             entryList.appendChild(li);
         });
         saveState(); updateDashboard();
     };
 
     setupEl('add-entry-btn', 'click', () => {
-        const catSelect = document.getElementById('entry-category-select'), amtInput = document.getElementById('entry-amount');
+        const catSelect = document.getElementById('entry-category-select'), amtInput = document.getElementById('entry-amount'), curSelect = document.getElementById('entry-currency');
         if (!amtInput.value || !catSelect.value) return;
-        const isExp = !['Maaş'].some(k => catSelect.value.includes(k));
-        state.entries.push({ desc: catSelect.value, amount: parseFloat(amtInput.value), type: isExp ? 'expense' : 'income', monthKey: `${currentDate.getFullYear()}-${currentDate.getMonth()}`, id: Date.now() });
+        const isExp = !['Maaş', 'Ek Ders', 'Gelir', 'Sınav Görevi'].some(k => catSelect.value.includes(k));
+        state.entries.push({ 
+            desc: catSelect.value, 
+            amount: parseFloat(amtInput.value), 
+            currency: curSelect.value || 'TRY',
+            type: isExp ? 'expense' : 'income', 
+            monthKey: `${currentDate.getFullYear()}-${currentDate.getMonth()}`, 
+            id: Date.now() 
+        });
         amtInput.value = ''; updateEntriesUI();
     });
 
     document.querySelectorAll('.quick-btn').forEach(b => b.addEventListener('click', () => {
-        const val = prompt(`${b.dataset.cat} miktarı:`);
+        const val = prompt(`${b.dataset.cat} miktarı (₺):`);
         if (val) {
             const isExp = b.classList.contains('gid-btn');
-            state.entries.push({ desc: b.dataset.cat, amount: parseFloat(val), type: isExp ? 'expense' : 'income', monthKey: `${currentDate.getFullYear()}-${currentDate.getMonth()}`, id: Date.now() });
+            state.entries.push({ desc: b.dataset.cat, amount: parseFloat(val), currency: 'TRY', type: isExp ? 'expense' : 'income', monthKey: `${currentDate.getFullYear()}-${currentDate.getMonth()}`, id: Date.now() });
             updateEntriesUI();
         }
     }));
@@ -214,10 +224,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEl('next-month', 'click', () => { currentDate.setMonth(currentDate.getMonth() + 1); updateEntriesUI(); });
     setupEl('sync-to-proj', 'click', () => {
         const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-        let net = 0; state.entries.filter(e => e.monthKey === key).forEach(e => { if (e.type === 'income') net += e.amount; else net -= e.amount; });
-        if (net > 0) {
+        let netTry = 0; 
+        const mUsd = state.market.usd || 1, mEur = state.market.eur || 1, mGold = state.market.gold || 1;
+        
+        state.entries.filter(e => e.monthKey === key).forEach(e => {
+            const cur = e.currency || 'TRY';
+            let amt = e.amount;
+            if (cur === 'USD') amt *= mUsd;
+            else if (cur === 'EUR') amt *= mEur;
+            else if (cur === 'GOLD') amt *= mGold;
+
+            if (e.type === 'income') netTry += amt; 
+            else netTry -= amt; 
+        });
+
+        if (netTry > 0) {
             const pMon = document.getElementById('proj-monthly');
-            if (pMon) { pMon.value = net.toFixed(0); state.projectionSettings.monthly = net; alert('Aktarıldı!'); initProjection(); }
+            if (pMon) { pMon.value = netTry.toFixed(0); state.projectionSettings.monthly = netTry; alert('Kalan bakiyeniz (TRY karşılığı) geleceğe aktarıldı! 🚀'); initProjection(); }
+        } else {
+            alert('Aktarılacak pozitif bir bakiye bulunamadı.');
         }
     });
 
@@ -271,31 +296,52 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DASHBOARD UPDATER ---
     const updateDashboard = () => {
         const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-        let inc = 0, exp = 0; (state.entries || []).filter(e => e.monthKey === key).forEach(e => { if (e.type === 'income') inc += e.amount; else exp += e.amount; });
+        
+        let incByCurrency = { TRY: 0, USD: 0, EUR: 0, GOLD: 0 };
+        let expByCurrency = { TRY: 0, USD: 0, EUR: 0, GOLD: 0 };
+
+        (state.entries || []).filter(e => e.monthKey === key).forEach(e => {
+            const cur = e.currency || 'TRY';
+            if (e.type === 'income') incByCurrency[cur] += e.amount;
+            else expByCurrency[cur] += e.amount;
+        });
+
+        // Convert totals for header
+        const mUsd = state.market.usd || 1, mEur = state.market.eur || 1, mGold = state.market.gold || 1;
+        const totalIncTry = incByCurrency.TRY + (incByCurrency.USD * mUsd) + (incByCurrency.EUR * mEur) + (incByCurrency.GOLD * mGold);
+        const totalExpTry = expByCurrency.TRY + (expByCurrency.USD * mUsd) + (expByCurrency.EUR * mEur) + (expByCurrency.GOLD * mGold);
+        
         const bPrice = state.market.bfren || 0, bCount = state.assets.bfren_count || 0, bAvg = state.assets.bfren_avg || 0;
         const bVal = bCount * bPrice, bCost = bCount * bAvg, bPL = bVal - bCost, bPLP = bCost > 0 ? (bPL/bCost)*100 : 0;
+        
         if (document.getElementById('bfren-total-val')) document.getElementById('bfren-total-val').textContent = formatCurrency(bVal);
         const bPLEl = document.getElementById('bfren-profit-loss');
         if (bPLEl) { bPLEl.textContent = `${formatCurrency(bPL)} (${bPLP.toFixed(2)}%)`; bPLEl.className = bPL >= 0 ? 'amt-gain' : 'amt-loss'; }
 
+        // Net income from ledger for each currency to add to assets
+        const netTry = incByCurrency.TRY - expByCurrency.TRY;
+        const netUsd = incByCurrency.USD - expByCurrency.USD;
+        const netEur = incByCurrency.EUR - expByCurrency.EUR;
+        const netGold = incByCurrency.GOLD - expByCurrency.GOLD;
+
         const breakdownItems = [
             { name: "🚜 BFREN Hisse", miktar: bCount, fiyat: bPrice, unit: "Lot" },
-            { name: "🌕 Gram Altın", miktar: state.assets.gold_count || 0, fiyat: state.market.gold || 0, unit: "Gr" },
+            { name: "🌕 Gram Altın", miktar: (state.assets.gold_count || 0) + netGold, fiyat: mGold, unit: "Gr" },
             { name: "🏛️ YPP Para Fonu", miktar: state.assets.ypp_count || 0, fiyat: state.market.ypp || 0, unit: "Adet" },
-            { name: "💵 Dolar ($)", miktar: state.assets.usd || 0, fiyat: state.market.usd || 0, unit: "$" },
-            { name: "💶 Euro (€)", miktar: state.assets.eur || 0, fiyat: state.market.eur || 0, unit: "€" }
+            { name: "💵 Dolar ($)", miktar: (state.assets.usd || 0) + netUsd, fiyat: mUsd, unit: "$" },
+            { name: "💶 Euro (€)", miktar: (state.assets.eur || 0) + netEur, fiyat: mEur, unit: "€" }
         ];
 
-        let totalWealth = (inc - exp); 
+        let totalWealth = netTry; // Start with net TRY surplus (Income - Expense)
         const bodyEl = document.getElementById('breakdown-body');
         if (bodyEl) {
             let tableHtml = '';
             breakdownItems.forEach(item => {
                 const total = item.miktar * item.fiyat;
                 totalWealth += total;
-                if (item.miktar > 0) {
+                if (item.miktar !== 0) {
                     const priceDisp = item.fiyat < 1 ? item.fiyat.toFixed(6) : item.fiyat.toFixed(2);
-                    tableHtml += `<tr><td>${item.name}</td><td>${item.miktar} ${item.unit}</td><td>${priceDisp} ₺</td><td>${formatCurrency(total)}</td></tr>`;
+                    tableHtml += `<tr><td>${item.name}</td><td>${item.miktar.toFixed(2)} ${item.unit}</td><td>${priceDisp} ₺</td><td>${formatCurrency(total)}</td></tr>`;
                 }
             });
             tableHtml += `<tr style="background:rgba(16,185,129,0.1); font-weight:700;"><td>GENEL TOPLAM</td><td>-</td><td>-</td><td style="color:var(--accent-emerald)">${formatCurrency(totalWealth)}</td></tr>`;
@@ -303,8 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (document.getElementById('net-wealth')) document.getElementById('net-wealth').textContent = formatCurrency(totalWealth);
-        if (document.getElementById('dash-total-income')) document.getElementById('dash-total-income').textContent = formatCurrency(inc);
-        if (document.getElementById('dash-total-expense')) document.getElementById('dash-total-expense').textContent = formatCurrency(exp);
+        if (document.getElementById('dash-total-income')) document.getElementById('dash-total-income').textContent = formatCurrency(totalIncTry);
+        if (document.getElementById('dash-total-expense')) document.getElementById('dash-total-expense').textContent = formatCurrency(totalExpTry);
         if (document.getElementById('dash-capital')) document.getElementById('dash-capital').textContent = formatCurrency(state.projectionSettings.initial);
     };
 
