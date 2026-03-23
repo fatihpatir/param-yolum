@@ -357,14 +357,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- INITIALIZE ---
-    const assetInputs = ['bfren-count', 'bfren-avg', 'gold-count', 'ypp-count', 'asset-usd', 'asset-eur'];
-    assetInputs.forEach(id => setupEl(id, 'input', (e) => {
-        state.assets[id.replace('-', '_')] = parseFloat(e.target.value) || 0;
+    const assetInputs = [
+        { id: 'bfren-count', key: 'bfren_count' },
+        { id: 'bfren-avg', key: 'bfren_avg' },
+        { id: 'gold-count', key: 'gold_count' },
+        { id: 'ypp-count', key: 'ypp_count' },
+        { id: 'asset-usd', key: 'usd' },
+        { id: 'asset-eur', key: 'eur' }
+    ];
+    assetInputs.forEach(item => setupEl(item.id, 'input', (e) => {
+        state.assets[item.key] = parseFloat(e.target.value) || 0;
         updateDashboard();
     }));
 
-    if (state.users && document.getElementById('user-name-1')) { document.getElementById('user-name-1').value = state.users.name1; document.getElementById('user-name-2').value = state.users.name2; syncUserNames(); }
-    assetInputs.forEach(id => { const el = document.getElementById(id); if (el) el.value = state.assets[id.replace('-', '_')] || ''; });
+    if (state.users && document.getElementById('user-name-1')) { 
+        document.getElementById('user-name-1').value = state.users.name1; 
+        document.getElementById('user-name-2').value = state.users.name2; 
+        syncUserNames(); 
+    }
+    assetInputs.forEach(item => { 
+        const el = document.getElementById(item.id); 
+        if (el) el.value = state.assets[item.key] || ''; 
+    });
     const pI = document.getElementById('proj-initial');
     if (pI) { pI.value = state.projectionSettings.initial; document.getElementById('proj-monthly').value = state.projectionSettings.monthly; document.getElementById('proj-rate').value = state.projectionSettings.rate; document.getElementById('proj-duration').value = state.projectionSettings.duration || 120; }
     
