@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const bPLEl = document.getElementById('bfren-profit-loss');
         if (bPLEl) { bPLEl.textContent = `${formatCurrency(bPL)} (${bPLP.toFixed(2)}%)`; bPLEl.className = bPL >= 0 ? 'amt-gain' : 'amt-loss'; }
 
-        // Net income from ledger for each currency to add to assets
+        // Net income/balance from ledger for each currency
         const netTry = incByCurrency.TRY - expByCurrency.TRY;
         const netUsd = incByCurrency.USD - expByCurrency.USD;
         const netEur = incByCurrency.EUR - expByCurrency.EUR;
@@ -329,19 +329,21 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: "🌕 Gram Altın", miktar: (state.assets.gold_count || 0) + netGold, fiyat: mGold, unit: "Gr" },
             { name: "🏛️ YPP Para Fonu", miktar: state.assets.ypp_count || 0, fiyat: state.market.ypp || 0, unit: "Adet" },
             { name: "💵 Dolar ($)", miktar: (state.assets.usd || 0) + netUsd, fiyat: mUsd, unit: "$" },
-            { name: "💶 Euro (€)", miktar: (state.assets.eur || 0) + netEur, fiyat: mEur, unit: "€" }
+            { name: "💶 Euro (€)", miktar: (state.assets.eur || 0) + netEur, fiyat: mEur, unit: "€" },
+            { name: "💰 Nakit (₺) / Bakiye", miktar: netTry, fiyat: 1, unit: "₺" }
         ];
 
-        let totalWealth = netTry; // Start with net TRY surplus (Income - Expense)
+        let totalWealth = 0; 
         const bodyEl = document.getElementById('breakdown-body');
         if (bodyEl) {
             let tableHtml = '';
             breakdownItems.forEach(item => {
                 const total = item.miktar * item.fiyat;
                 totalWealth += total;
-                if (item.miktar !== 0) {
+                if (Math.abs(item.miktar) > 0.0001) { // Show if non-zero
                     const priceDisp = item.fiyat < 1 ? item.fiyat.toFixed(6) : item.fiyat.toFixed(2);
-                    tableHtml += `<tr><td>${item.name}</td><td>${item.miktar.toFixed(2)} ${item.unit}</td><td>${priceDisp} ₺</td><td>${formatCurrency(total)}</td></tr>`;
+                    const miktarDisp = item.unit === '₺' ? formatCurrency(item.miktar) : `${item.miktar.toFixed(2)} ${item.unit}`;
+                    tableHtml += `<tr><td>${item.name}</td><td>${miktarDisp}</td><td>${priceDisp} ₺</td><td>${formatCurrency(total)}</td></tr>`;
                 }
             });
             tableHtml += `<tr style="background:rgba(16,185,129,0.1); font-weight:700;"><td>GENEL TOPLAM</td><td>-</td><td>-</td><td style="color:var(--accent-emerald)">${formatCurrency(totalWealth)}</td></tr>`;
